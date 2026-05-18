@@ -56,6 +56,9 @@
   const cueXOutput = $("#cueXOutput");
   const cueYOutput = $("#cueYOutput");
   const cueScaleOutput = $("#cueScaleOutput");
+  const cueXNumberInput = $("#cueXNumberInput");
+  const cueYNumberInput = $("#cueYNumberInput");
+  const cueScaleNumberInput = $("#cueScaleNumberInput");
   const cueAnimationSelect = $("#cueAnimationSelect");
   const cueFadeInInput = $("#cueFadeInInput");
   const cueFadeOutInput = $("#cueFadeOutInput");
@@ -135,9 +138,30 @@
   }
 
   function updateSliderOutputs() {
-    if (cueXOutput) cueXOutput.value = String(Math.round(toNumber(cueXInput.value, 960)));
-    if (cueYOutput) cueYOutput.value = String(Math.round(toNumber(cueYInput.value, 1040)));
-    if (cueScaleOutput) cueScaleOutput.value = `${Math.round(toNumber(cueScaleInput.value, 1) * 100)}%`;
+    const xValue = Math.round(toNumber(cueXInput.value, 960));
+    const yValue = Math.round(toNumber(cueYInput.value, 1040));
+    const scaleValue = Math.max(0.05, toNumber(cueScaleInput.value, 1));
+
+    if (cueXOutput) cueXOutput.value = String(xValue);
+    if (cueYOutput) cueYOutput.value = String(yValue);
+    if (cueScaleOutput) cueScaleOutput.value = `${Math.round(scaleValue * 100)}%`;
+
+    if (cueXNumberInput && document.activeElement !== cueXNumberInput) cueXNumberInput.value = String(xValue);
+    if (cueYNumberInput && document.activeElement !== cueYNumberInput) cueYNumberInput.value = String(yValue);
+    if (cueScaleNumberInput && document.activeElement !== cueScaleNumberInput) cueScaleNumberInput.value = scaleValue.toFixed(2);
+  }
+
+  function syncSliderFromNumberInput(numberInput, rangeInput, fallback = 0) {
+    if (!numberInput || !rangeInput) return;
+    const min = Number(rangeInput.min);
+    const max = Number(rangeInput.max);
+    let value = toNumber(numberInput.value, fallback);
+    if (Number.isFinite(min)) value = Math.max(min, value);
+    if (Number.isFinite(max)) value = Math.min(max, value);
+    rangeInput.value = String(value);
+    numberInput.value = rangeInput.step && String(rangeInput.step).includes('.')
+      ? Number(value).toFixed(String(rangeInput.step).split('.')[1].length)
+      : String(Math.round(value));
   }
 
   function applyPreviewDisplaySettings() {
@@ -1206,6 +1230,28 @@
     previewBgSelect.addEventListener("change", () => {
       state.settings.previewBg = previewBgSelect.value;
       applyPreviewDisplaySettings();
+    });
+
+    [
+      [cueXNumberInput, cueXInput, 960],
+      [cueYNumberInput, cueYInput, 1040],
+      [cueScaleNumberInput, cueScaleInput, 1]
+    ].forEach(([numberInput, rangeInput, fallback]) => {
+      if (!numberInput || !rangeInput) return;
+
+      numberInput.addEventListener("input", () => {
+        syncSliderFromNumberInput(numberInput, rangeInput, fallback);
+        updateSliderOutputs();
+        cuePositionPresetSelect.value = "custom";
+        markFormPreview({ syncToStart: true });
+      });
+
+      numberInput.addEventListener("change", () => {
+        syncSliderFromNumberInput(numberInput, rangeInput, fallback);
+        updateSliderOutputs();
+        cuePositionPresetSelect.value = "custom";
+        markFormPreview({ syncToStart: true });
+      });
     });
 
     [

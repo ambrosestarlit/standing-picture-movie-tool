@@ -200,17 +200,35 @@
             </div>
 
             <label class="field slider-field">
-              <span>X位置 <output id="cueXOutput">960</output></span>
+              <span>
+                <span class="slider-title">X位置</span>
+                <span class="slider-value-wrap">
+                  <output id="cueXOutput">960</output>
+                  <input id="cueXNumberInput" class="slider-number-input" type="number" min="-1000" max="2920" step="1" value="960" />
+                </span>
+              </span>
               <input id="cueXInput" type="range" min="-1000" max="2920" step="1" value="960" />
             </label>
 
             <label class="field slider-field">
-              <span>下端Y位置 <output id="cueYOutput">1040</output></span>
+              <span>
+                <span class="slider-title">下端Y位置</span>
+                <span class="slider-value-wrap">
+                  <output id="cueYOutput">1040</output>
+                  <input id="cueYNumberInput" class="slider-number-input" type="number" min="-1000" max="2080" step="1" value="1040" />
+                </span>
+              </span>
               <input id="cueYInput" type="range" min="-1000" max="2080" step="1" value="1040" />
             </label>
 
             <label class="field slider-field">
-              <span>サイズ / 拡大率 <output id="cueScaleOutput">100%</output></span>
+              <span>
+                <span class="slider-title">サイズ / 拡大率</span>
+                <span class="slider-value-wrap">
+                  <output id="cueScaleOutput">100%</output>
+                  <input id="cueScaleNumberInput" class="slider-number-input" type="number" min="0.05" max="5" step="0.01" value="1" />
+                </span>
+              </span>
               <input id="cueScaleInput" type="range" min="0.05" max="5" step="0.01" value="1" />
             </label>
           </div>

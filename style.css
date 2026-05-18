@@ -541,6 +541,16 @@ canvas {
   gap: 0.7rem;
 }
 
+.slider-title {
+  min-width: 0;
+}
+
+.slider-value-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
 .slider-field output {
   min-width: 4.8rem;
   border: 1px solid rgba(199, 217, 232, 0.9);
@@ -551,6 +561,25 @@ canvas {
   text-align: center;
   font-size: 0.8rem;
   font-variant-numeric: tabular-nums;
+}
+
+.slider-number-input {
+  width: 6.2rem;
+  min-height: 2rem;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid rgba(199, 217, 232, 0.9);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.96);
+  color: #23465e;
+  text-align: right;
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.slider-number-input:focus {
+  outline: none;
+  border-color: rgba(106, 167, 196, 0.95);
+  box-shadow: 0 0 0 3px rgba(171, 219, 230, 0.28);
 }
 
 .slider-field input[type="range"] {
@@ -859,4 +888,17 @@ button.mini.danger {
   color: var(--muted);
   font-size: 0.74rem;
   line-height: 1.35;
+}
+
+
+@media (max-width: 720px) {
+  .slider-value-wrap {
+    width: 100%;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+
+  .slider-number-input {
+    width: 5.4rem;
+  }
 }
