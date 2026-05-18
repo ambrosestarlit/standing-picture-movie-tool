@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ADV Standing Picture Movie Tool</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="app-header">
+    <div>
+      <h1>ADV Standing Picture Movie Tool</h1>
+      <p>音声に合わせてキャラクター立ち絵・表情差分を切り替える透過PNG連番生成ツール</p>
+    </div>
+    <div class="header-actions">
+      <button id="saveJsonBtn" type="button">JSON保存</button>
+      <label class="file-button">
+        JSON読込
+        <input id="loadJsonInput" type="file" accept="application/json,.json" />
+      </label>
+      <button id="saveCacheBtn" type="button">キャッシュ保存</button>
+      <button id="loadCacheBtn" type="button">キャッシュ復元</button>
+    </div>
+  </header>
+
+  <main class="app-layout">
+    <aside class="panel controls-panel">
+      <details open>
+        <summary>キャラクター登録</summary>
+        <div class="control-stack">
+          <div class="inline-form">
+            <input id="characterNameInput" type="text" placeholder="キャラクター名" />
+            <button id="addCharacterBtn" type="button">追加</button>
+          </div>
+
+          <div class="variant-register-box">
+            <label class="field">
+              <span>差分を追加するキャラクター</span>
+              <select id="variantCharacterSelect"></select>
+            </label>
+            <div class="grid-2">
+              <label class="field">
+                <span>差分名</span>
+                <input id="variantNameInput" type="text" placeholder="笑顔 / 困り顔 / 怒り など" />
+              </label>
+              <label class="field">
+                <span>立ち絵画像</span>
+                <input id="variantImageInput" type="file" accept="image/*" />
+              </label>
+            </div>
+            <p class="hint">差分名は「笑顔」「照れ」「不安」など、表情がわかりやすい名前にすることを推奨します。</p>
+            <button id="addVariantBtn" type="button">差分を追加</button>
+          </div>
+
+          <div id="characterList" class="character-list"></div>
+        </div>
+      </details>
+
+      <details open>
+        <summary>立ち絵キュー一覧</summary>
+        <div class="control-stack">
+          <div id="cueList" class="cue-list"></div>
+        </div>
+      </details>
+
+      <details open>
+        <summary>プレビュー</summary>
+        <div class="control-stack">
+          <label class="field">
+            <span>プレビュー秒</span>
+            <input id="previewTimeInput" type="number" min="0" step="0.01" value="0" />
+          </label>
+          <input id="previewTimeRange" type="range" min="0" max="30" step="0.01" value="0" />
+          <div class="button-row">
+            <button id="renderPreviewBtn" type="button">プレビュー更新</button>
+          </div>
+        </div>
+      </details>
+
+      <details open>
+        <summary>表示補助</summary>
+        <div class="control-stack">
+          <label class="checkbox-field">
+            <input id="showGridInput" type="checkbox" />
+            <span>位置調整用グリッドを表示</span>
+          </label>
+          <label class="checkbox-field">
+            <input id="showSafeAreaInput" type="checkbox" />
+            <span>中央・安全範囲ガイドを表示</span>
+          </label>
+          <p class="hint">グリッドやガイドはプレビュー用です。書き出しPNGには含めません。</p>
+        </div>
+      </details>
+
+      <details open>
+        <summary>書き出し</summary>
+        <div class="control-stack">
+          <div class="grid-2">
+            <label class="field">
+              <span>FPS</span>
+              <input id="exportFpsInput" type="number" min="1" max="60" step="1" value="30" />
+            </label>
+            <label class="field">
+              <span>ファイル名接頭辞</span>
+              <input id="exportPrefixInput" type="text" value="standing" />
+            </label>
+          </div>
+          <div class="grid-2">
+            <label class="field">
+              <span>書き出し開始秒</span>
+              <input id="exportStartInput" type="number" min="0" step="0.01" value="0" />
+            </label>
+            <label class="field">
+              <span>書き出し終了秒</span>
+              <input id="exportEndInput" type="number" min="0" step="0.01" value="3" />
+            </label>
+          </div>
+          <button id="exportZipBtn" type="button" class="primary">透過PNG連番ZIPを書き出し</button>
+          <div id="exportProgress" class="progress-text"></div>
+        </div>
+      </details>
+    </aside>
+
+    <section class="preview-panel">
+      <div class="preview-toolbar">
+        <div class="preview-title">
+          <strong>Canvas</strong>
+          <span>1920 × 1080 / 透過PNG / 背景はプレビュー用</span>
+        </div>
+
+        <div class="preview-display-tools" aria-label="プレビュー表示設定">
+          <label class="preview-mini-field preview-zoom-field">
+            <span>表示倍率</span>
+            <input id="previewZoomInput" type="range" min="20" max="70" step="1" value="32" />
+            <output id="previewZoomOutput">32%</output>
+          </label>
+
+          <label class="preview-mini-field preview-bg-field">
+            <span>背景</span>
+            <select id="previewBgSelect">
+              <option value="mint" selected>ミント</option>
+              <option value="white">白</option>
+              <option value="blue">薄い水色</option>
+              <option value="cream">クリーム</option>
+              <option value="checker">市松</option>
+            </select>
+          </label>
+        </div>
+
+        <div id="activeCueInfo" class="active-cue-info">表示中の立ち絵なし</div>
+      </div>
+
+      <div id="canvasWrap" class="canvas-wrap preview-bg-mint">
+        <canvas id="previewCanvas" width="1920" height="1080"></canvas>
+      </div>
+
+      <div class="quick-cue-panel" aria-label="立ち絵キュー入力">
+        <div class="quick-material-panel">
+          <div class="material-title">素材・再生</div>
+          <label class="field">
+            <span>音声ファイル</span>
+            <input id="audioInput" type="file" accept="audio/*" />
+          </label>
+          <audio id="audioPlayer" controls></audio>
+        </div>
+
+        <div class="quick-cue-grid">
+          <label class="field quick-character-field">
+            <span>キャラ選択</span>
+            <select id="cueCharacterSelect"></select>
+          </label>
+
+          <label class="field quick-variant-field">
+            <span>差分選択</span>
+            <select id="cueVariantSelect"></select>
+          </label>
+
+          <label class="field quick-after-variant-field">
+            <span>終了後の立ち絵</span>
+            <select id="cueAfterVariantSelect"></select>
+          </label>
+
+          <label class="field quick-position-field">
+            <span>立ち絵の位置</span>
+            <select id="cuePositionPresetSelect">
+              <option value="left">左</option>
+              <option value="leftCenter">左寄り</option>
+              <option value="center">中央</option>
+              <option value="rightCenter">右寄り</option>
+              <option value="right">右</option>
+              <option value="custom">自由指定</option>
+            </select>
+          </label>
+
+          <div class="quick-slider-panel" aria-label="立ち絵位置・サイズ調整">
+            <div class="slider-head">
+              <strong>位置・サイズ調整</strong>
+              <span>大きめスライダーで細かく調整できます</span>
+            </div>
+
+            <label class="field slider-field">
+              <span>X位置 <output id="cueXOutput">960</output></span>
+              <input id="cueXInput" type="range" min="-1000" max="2920" step="1" value="960" />
+            </label>
+
+            <label class="field slider-field">
+              <span>下端Y位置 <output id="cueYOutput">1040</output></span>
+              <input id="cueYInput" type="range" min="-1000" max="2080" step="1" value="1040" />
+            </label>
+
+            <label class="field slider-field">
+              <span>サイズ / 拡大率 <output id="cueScaleOutput">100%</output></span>
+              <input id="cueScaleInput" type="range" min="0.05" max="5" step="0.01" value="1" />
+            </label>
+          </div>
+
+          <details class="quick-settings" open>
+            <summary>設定項目</summary>
+            <div class="quick-settings-body">
+              <div class="quick-number-grid">
+                <label class="field">
+                  <span>開始秒</span>
+                  <input id="cueStartInput" type="number" min="0" step="0.01" value="0" />
+                </label>
+                <label class="field">
+                  <span>台詞終了秒</span>
+                  <input id="cueEndInput" type="number" min="0" step="0.01" value="3" />
+                </label>
+                <label class="field">
+                  <span>重なり順</span>
+                  <input id="cueLayerInput" type="number" step="1" value="0" />
+                </label>
+              </div>
+
+              <div class="quick-number-grid">
+                <label class="field">
+                  <span>アニメーション</span>
+                  <select id="cueAnimationSelect">
+                    <option value="none">未設定</option>
+                    <option value="jump">一度だけ小さくジャンプする</option>
+                    <option value="shake">プルプル震える</option>
+                  </select>
+                </label>
+                <label class="field">
+                  <span>フェードイン秒</span>
+                  <input id="cueFadeInInput" type="number" min="0" step="0.01" value="0.25" />
+                </label>
+                <label class="field">
+                  <span>フェードアウト秒</span>
+                  <input id="cueFadeOutInput" type="number" min="0" step="0.01" value="0.25" />
+                </label>
+              </div>
+
+              <div class="checkbox-row">
+                <label class="checkbox-field">
+                  <input id="cueEntranceInput" type="checkbox" />
+                  <span>入場：開始時にフェードイン</span>
+                </label>
+                <label class="checkbox-field">
+                  <input id="cueExitInput" type="checkbox" />
+                  <span>退場：台詞終了時にフェードアウト</span>
+                </label>
+              </div>
+              <p class="hint">退場を入れない場合、台詞終了秒以降は「終了後の立ち絵」に自動で切り替わります。</p>
+
+              <div class="button-row quick-time-buttons">
+                <button id="setStartFromAudioBtn" type="button">現在時刻を開始へ</button>
+                <button id="setEndFromAudioBtn" type="button">現在時刻を終了へ</button>
+                <button id="applyPositionPresetBtn" type="button">位置プリセットを反映</button>
+              </div>
+            </div>
+          </details>
+
+          <div class="quick-action-buttons">
+            <button id="addOrUpdateCueBtn" type="button" class="primary">キュー追加</button>
+            <button id="cancelEditCueBtn" type="button">編集解除</button>
+          </div>
+        </div>
+
+      </div>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
