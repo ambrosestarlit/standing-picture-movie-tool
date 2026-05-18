@@ -27,6 +27,7 @@
 
   const audioInput = $("#audioInput");
   const audioPlayer = $("#audioPlayer");
+  const audioStatus = $("#audioStatus");
 
   const saveJsonBtn = $("#saveJsonBtn");
   const loadJsonInput = $("#loadJsonInput");
@@ -85,6 +86,10 @@
     cues: [],
     editingCueId: null,
     audioObjectUrl: null,
+    audioDataUrl: "",
+    audioFileName: "",
+    audioMimeType: "",
+    audioSize: 0,
     lastVariantCharacterId: null,
     formPreviewEnabled: false,
     settings: {
@@ -120,6 +125,13 @@
   function formatTime(seconds) {
     const value = Math.max(0, toNumber(seconds, 0));
     return `${value.toFixed(2)}s`;
+  }
+
+  function formatBytes(bytes) {
+    const size = Math.max(0, toNumber(bytes, 0));
+    if (size >= 1024 * 1024) return `${(size / 1024 / 1024).toFixed(1)}MB`;
+    if (size >= 1024) return `${(size / 1024).toFixed(1)}KB`;
+    return `${Math.round(size)}B`;
   }
 
   function updateSliderOutputs() {
@@ -173,6 +185,35 @@
     });
   }
 
+  function updateAudioStatus() {
+    if (!audioStatus) return;
+    if (state.audioDataUrl) {
+      const name = state.audioFileName || "音声ファイル";
+      const size = state.audioSize ? ` / ${formatBytes(state.audioSize)}` : "";
+      audioStatus.textContent = `保存対象：${name}${size}`;
+      return;
+    }
+    audioStatus.textContent = "音声未読込：音声を読み込むとJSON保存・キャッシュ保存にも含まれます。";
+  }
+
+  function setAudioSourceFromState() {
+    if (state.audioObjectUrl) {
+      URL.revokeObjectURL(state.audioObjectUrl);
+      state.audioObjectUrl = null;
+    }
+
+    if (state.audioDataUrl) {
+      audioPlayer.src = state.audioDataUrl;
+      audioPlayer.load();
+    } else {
+      audioPlayer.removeAttribute("src");
+      audioPlayer.load();
+    }
+
+    updateAudioStatus();
+    setRangeMaxFromDuration();
+  }
+
   function loadImage(dataUrl) {
     return new Promise((resolve, reject) => {
       const img = new Image();
@@ -217,7 +258,15 @@
         }))
       })),
       cues: state.cues.map((cue) => ({ ...cue })),
-      settings: { ...state.settings }
+      settings: { ...state.settings },
+      audio: state.audioDataUrl
+        ? {
+            fileName: state.audioFileName,
+            mimeType: state.audioMimeType,
+            size: state.audioSize,
+            dataUrl: state.audioDataUrl
+          }
+        : null
     };
   }
 
@@ -233,6 +282,20 @@
     state.editingCueId = null;
     state.formPreviewEnabled = false;
     state.lastVariantCharacterId = state.characters[0]?.id ?? null;
+
+    if (project.audio?.dataUrl) {
+      state.audioDataUrl = String(project.audio.dataUrl);
+      state.audioFileName = String(project.audio.fileName ?? "");
+      state.audioMimeType = String(project.audio.mimeType ?? "");
+      state.audioSize = toNumber(project.audio.size, 0);
+    } else {
+      state.audioDataUrl = "";
+      state.audioFileName = "";
+      state.audioMimeType = "";
+      state.audioSize = 0;
+    }
+    audioInput.value = "";
+    setAudioSourceFromState();
 
     showGridInput.checked = state.settings.showGrid;
     showSafeAreaInput.checked = state.settings.showSafeArea;
@@ -755,9 +818,11 @@
       if (cue.start > time) continue;
 
       if (cue.exit && time >= cue.end) {
-        if (visible.get(cue.characterId)?.id === cue.id || !visible.has(cue.characterId)) {
-          visible.delete(cue.characterId);
-        }
+        // 退場キューは「このキュー自身だけを消す」のではなく、
+        // その時点で同じキャラに残っている立ち絵状態を明示的に消す。
+        // これをしないと、過去の非退場キューが残り続けて、
+        // 退場フェード後に古い立ち絵が復活してしまう。
+        visible.delete(cue.characterId);
         continue;
       }
 
@@ -979,12 +1044,26 @@
   }
 
   function bindEvents() {
-    audioInput.addEventListener("change", () => {
+    audioInput.addEventListener("change", async () => {
       const file = audioInput.files?.[0];
       if (!file) return;
-      if (state.audioObjectUrl) URL.revokeObjectURL(state.audioObjectUrl);
-      state.audioObjectUrl = URL.createObjectURL(file);
-      audioPlayer.src = state.audioObjectUrl;
+
+      try {
+        audioInput.disabled = true;
+        if (audioStatus) audioStatus.textContent = "音声を読み込み中...";
+        const dataUrl = await readFileAsDataURL(file);
+        state.audioDataUrl = dataUrl;
+        state.audioFileName = file.name;
+        state.audioMimeType = file.type || "audio/*";
+        state.audioSize = file.size;
+        setAudioSourceFromState();
+      } catch (error) {
+        console.error(error);
+        alert("音声ファイルの読み込みに失敗しました。");
+        updateAudioStatus();
+      } finally {
+        audioInput.disabled = false;
+      }
     });
 
     audioPlayer.addEventListener("loadedmetadata", setRangeMaxFromDuration);
@@ -1161,6 +1240,7 @@
   async function init() {
     bindEvents();
     clearCueForm(false);
+    updateAudioStatus();
     renderAll();
   }
 

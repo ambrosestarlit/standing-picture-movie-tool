@@ -852,3 +852,11 @@ button.mini.danger {
     justify-content: flex-start;
   }
 }
+
+.audio-status {
+  display: block;
+  margin-top: 0.25rem;
+  color: var(--muted);
+  font-size: 0.74rem;
+  line-height: 1.35;
+}
