@@ -902,3 +902,263 @@ button.mini.danger {
     width: 5.4rem;
   }
 }
+
+
+.material-box-title {
+  display: block;
+  color: #23465e;
+  font-size: 0.92rem;
+}
+
+.sequence-register-box {
+  background: rgba(241, 249, 255, 0.88);
+}
+
+.overlay-settings-block {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.overlay-hint {
+  margin: 0;
+}
+
+.quick-overlay-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.42rem;
+}
+
+.hidden {
+  display: none !important;
+}
+
+.muted-small {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.sequence-chip {
+  background: rgba(236, 247, 255, 0.92);
+}
+
+.audio-status {
+  display: block;
+  margin-top: 0.25rem;
+  color: var(--muted);
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+
+@media (max-width: 720px) {
+  .quick-overlay-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+/* layout clean: 口パク/まばたきと時間設定を下部で横並び整理 */
+.preview-panel {
+  max-height: none;
+  overflow: visible;
+}
+
+.canvas-wrap {
+  min-height: 420px;
+  overflow: auto;
+}
+
+.quick-cue-grid {
+  grid-template-columns:
+    minmax(110px, 0.8fr)
+    minmax(135px, 1fr)
+    minmax(135px, 1fr)
+    minmax(110px, 0.8fr)
+    minmax(128px, 0.74fr)
+    minmax(96px, auto);
+}
+
+.quick-character-field {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.quick-variant-field {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.quick-after-variant-field {
+  grid-column: 3;
+  grid-row: 1;
+}
+
+.quick-position-field {
+  grid-column: 4;
+  grid-row: 1;
+}
+
+.overlay-settings-block {
+  grid-column: 1 / 5;
+  grid-row: 2;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.45rem;
+  border: 1px solid rgba(199, 217, 232, 0.86);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.84);
+  padding: 0.55rem;
+}
+
+.overlay-settings-block .overlay-hint {
+  grid-column: 1 / -1;
+}
+
+.quick-overlay-grid {
+  grid-template-columns: minmax(92px, 0.72fr) minmax(120px, 1fr) minmax(120px, 1fr);
+}
+
+.quick-slider-panel {
+  grid-column: 1 / 5;
+  grid-row: 3;
+}
+
+.quick-settings {
+  grid-column: 1 / 6;
+  grid-row: 4;
+}
+
+.quick-settings-body {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(90px, 1fr));
+  gap: 0.42rem;
+  align-items: end;
+}
+
+.quick-settings-body .quick-number-grid {
+  display: contents;
+}
+
+.quick-settings-body > .checkbox-row {
+  grid-column: 1 / 4;
+  align-self: center;
+}
+
+.quick-settings-body > .hint {
+  grid-column: 4 / 6;
+  align-self: center;
+}
+
+.quick-settings-body > .quick-time-buttons {
+  grid-column: 1 / 6;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.quick-action-buttons {
+  grid-column: 6;
+  grid-row: 1 / 5;
+  align-self: start;
+}
+
+@media (max-width: 1180px) {
+  .overlay-settings-block,
+  .quick-slider-panel,
+  .quick-settings,
+  .quick-action-buttons {
+    grid-column: 1 / -1;
+    grid-row: auto;
+  }
+
+  .quick-settings-body {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .quick-settings-body > .checkbox-row,
+  .quick-settings-body > .hint,
+  .quick-settings-body > .quick-time-buttons {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 720px) {
+  .overlay-settings-block,
+  .quick-overlay-grid,
+  .quick-settings-body,
+  .quick-settings-body > .quick-time-buttons {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+/* right pane scroll behavior: keep preview fixed, scroll settings only */
+.preview-panel {
+  align-self: start;
+  position: sticky;
+  top: 4.5rem;
+  max-height: calc(100vh - 5.2rem);
+  height: calc(100vh - 5.2rem);
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  overflow: hidden;
+}
+
+.preview-toolbar {
+  flex-shrink: 0;
+}
+
+.canvas-wrap {
+  min-height: 420px;
+  max-height: none;
+  overflow: auto;
+  flex-shrink: 0;
+}
+
+.quick-cue-panel {
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding-bottom: 1rem;
+}
+
+@media (max-width: 1180px) {
+  .preview-panel {
+    position: static;
+    top: auto;
+    height: auto;
+    max-height: none;
+    grid-template-rows: auto auto auto;
+    overflow: visible;
+  }
+
+  .quick-cue-panel {
+    overflow: visible;
+  }
+}
+
+
+/* audio layout: file registration on left, fixed player above preview canvas */
+.preview-panel {
+  grid-template-rows: auto auto auto minmax(0, 1fr);
+}
+
+.preview-audio-player-row {
+  padding: 0.42rem 0.72rem 0.5rem;
+  border-bottom: 1px solid rgba(199, 217, 232, 0.78);
+  background: rgba(248, 252, 255, 0.82);
+}
+
+.preview-audio-player-row audio {
+  display: block;
+  width: 100%;
+}
+
+.quick-cue-panel {
+  min-height: 0;
+}
+
+@media (max-width: 1180px) {
+  .preview-panel {
+    grid-template-rows: auto auto auto auto;
+  }
+}

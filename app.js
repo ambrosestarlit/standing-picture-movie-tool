@@ -40,12 +40,24 @@
   const variantNameInput = $("#variantNameInput");
   const variantImageInput = $("#variantImageInput");
   const addVariantBtn = $("#addVariantBtn");
+  const sequenceCharacterSelect = $("#sequenceCharacterSelect");
+  const sequenceNameInput = $("#sequenceNameInput");
+  const sequenceTypeSelect = $("#sequenceTypeSelect");
+  const sequenceFpsInput = $("#sequenceFpsInput");
+  const sequenceImageInput = $("#sequenceImageInput");
+  const addSequenceBtn = $("#addSequenceBtn");
   const characterList = $("#characterList");
 
   const cueList = $("#cueList");
   const cueCharacterSelect = $("#cueCharacterSelect");
   const cueVariantSelect = $("#cueVariantSelect");
   const cueAfterVariantSelect = $("#cueAfterVariantSelect");
+  const cueMouthModeSelect = $("#cueMouthModeSelect");
+  const cueMouthVariantSelect = $("#cueMouthVariantSelect");
+  const cueMouthSequenceSelect = $("#cueMouthSequenceSelect");
+  const cueBlinkModeSelect = $("#cueBlinkModeSelect");
+  const cueBlinkVariantSelect = $("#cueBlinkVariantSelect");
+  const cueBlinkSequenceSelect = $("#cueBlinkSequenceSelect");
   const cuePositionPresetSelect = $("#cuePositionPresetSelect");
   const cueStartInput = $("#cueStartInput");
   const cueEndInput = $("#cueEndInput");
@@ -94,11 +106,12 @@
     audioMimeType: "",
     audioSize: 0,
     lastVariantCharacterId: null,
+    lastSequenceCharacterId: null,
     formPreviewEnabled: false,
     settings: {
       showGrid: false,
       showSafeArea: false,
-      previewZoom: 32,
+      previewZoom: 40,
       previewBg: "mint"
     }
   };
@@ -197,7 +210,17 @@
   function findVariant(characterId, variantId) {
     const character = findCharacter(characterId);
     if (!character) return null;
-    return character.variants.find((variant) => variant.id === variantId) ?? null;
+    return (character.variants ?? []).find((variant) => variant.id === variantId) ?? null;
+  }
+
+  function findSequence(characterId, sequenceId) {
+    const character = findCharacter(characterId);
+    if (!character) return null;
+    return (character.sequenceVariants ?? []).find((sequence) => sequence.id === sequenceId) ?? null;
+  }
+
+  function compareFileNames(a, b) {
+    return String(a ?? "").localeCompare(String(b ?? ""), undefined, { numeric: true, sensitivity: "base" });
   }
 
   function readFileAsDataURL(file) {
@@ -251,6 +274,7 @@
     const tasks = [];
     for (const character of state.characters) {
       character.variants ??= [];
+      character.sequenceVariants ??= [];
       for (const variant of character.variants) {
         if (variant.dataUrl && !variant._img) {
           tasks.push(
@@ -260,6 +284,20 @@
               variant.height = img.naturalHeight;
             })
           );
+        }
+      }
+      for (const sequence of character.sequenceVariants) {
+        sequence.frames ??= [];
+        for (const frame of sequence.frames) {
+          if (frame.dataUrl && !frame._img) {
+            tasks.push(
+              loadImage(frame.dataUrl).then((img) => {
+                frame._img = img;
+                frame.width = img.naturalWidth;
+                frame.height = img.naturalHeight;
+              })
+            );
+          }
         }
       }
     }
@@ -279,6 +317,18 @@
           dataUrl: variant.dataUrl,
           width: variant.width ?? null,
           height: variant.height ?? null
+        })),
+        sequenceVariants: (character.sequenceVariants ?? []).map((sequence) => ({
+          id: sequence.id,
+          name: sequence.name,
+          type: sequence.type ?? "generic",
+          fps: Math.max(1, toNumber(sequence.fps, 8)),
+          frames: (sequence.frames ?? []).map((frame) => ({
+            fileName: frame.fileName ?? "",
+            dataUrl: frame.dataUrl,
+            width: frame.width ?? null,
+            height: frame.height ?? null
+          }))
         }))
       })),
       cues: state.cues.map((cue) => ({ ...cue })),
@@ -300,12 +350,17 @@
     state.settings = {
       showGrid: Boolean(project.settings?.showGrid),
       showSafeArea: Boolean(project.settings?.showSafeArea),
-      previewZoom: clamp(toNumber(project.settings?.previewZoom, 32), 20, 70),
+      previewZoom: clamp(toNumber(project.settings?.previewZoom, 40), 20, 70),
       previewBg: ["mint", "white", "blue", "cream", "checker"].includes(project.settings?.previewBg) ? project.settings.previewBg : "mint"
     };
+    for (const character of state.characters) {
+      character.variants ??= [];
+      character.sequenceVariants ??= [];
+    }
     state.editingCueId = null;
     state.formPreviewEnabled = false;
     state.lastVariantCharacterId = state.characters[0]?.id ?? null;
+    state.lastSequenceCharacterId = state.characters[0]?.id ?? null;
 
     if (project.audio?.dataUrl) {
       state.audioDataUrl = String(project.audio.dataUrl);
@@ -383,54 +438,87 @@
 
   function populateCharacterSelects() {
     const previousVariantCharacterId = state.lastVariantCharacterId || variantCharacterSelect.value;
+    const previousSequenceCharacterId = state.lastSequenceCharacterId || sequenceCharacterSelect.value;
     const previousCueCharacterId = cueCharacterSelect.value;
     const options = state.characters
       .map((character) => `<option value="${escapeHtml(character.id)}">${escapeHtml(character.name)}</option>`)
       .join("");
 
     variantCharacterSelect.innerHTML = options || `<option value="">キャラクター未登録</option>`;
+    sequenceCharacterSelect.innerHTML = options || `<option value="">キャラクター未登録</option>`;
     cueCharacterSelect.innerHTML = options || `<option value="">キャラクター未登録</option>`;
 
     if (state.characters.length > 0) {
       const variantTarget = findCharacter(previousVariantCharacterId) ? previousVariantCharacterId : state.characters[0].id;
+      const sequenceTarget = findCharacter(previousSequenceCharacterId) ? previousSequenceCharacterId : variantTarget;
       const cueTarget = findCharacter(previousCueCharacterId) ? previousCueCharacterId : variantTarget;
       variantCharacterSelect.value = variantTarget;
+      sequenceCharacterSelect.value = sequenceTarget;
       cueCharacterSelect.value = cueTarget;
       state.lastVariantCharacterId = variantTarget;
+      state.lastSequenceCharacterId = sequenceTarget;
     }
 
     populateVariantSelect();
+    populateSequenceSelects();
+    updateOverlayModeVisibility();
   }
 
   function populateVariantSelect() {
     const previousVariantId = cueVariantSelect.value;
     const previousAfterVariantId = cueAfterVariantSelect.value;
+    const previousMouthVariantId = cueMouthVariantSelect.value;
+    const previousBlinkVariantId = cueBlinkVariantSelect.value;
     const character = findCharacter(cueCharacterSelect.value);
     const variants = character?.variants ?? [];
     const variantOptions = variants.length
-      ? variants
-          .map((variant) => `<option value="${escapeHtml(variant.id)}">${escapeHtml(variant.name)}</option>`)
-          .join("")
-      : `<option value="">差分未登録</option>`;
+      ? variants.map((variant) => `<option value="${escapeHtml(variant.id)}">${escapeHtml(variant.name)}</option>`).join("")
+      : `<option value="">画像素材未登録</option>`;
 
     cueVariantSelect.innerHTML = variantOptions;
     cueAfterVariantSelect.innerHTML = variants.length
-      ? `<option value="">同じ差分を維持</option>${variantOptions}`
-      : `<option value="">差分未登録</option>`;
+      ? `<option value="">同じ画像素材を維持</option>${variantOptions}`
+      : `<option value="">画像素材未登録</option>`;
+    cueMouthVariantSelect.innerHTML = variants.length
+      ? `<option value="">選択してください</option>${variantOptions}`
+      : `<option value="">画像素材未登録</option>`;
+    cueBlinkVariantSelect.innerHTML = variants.length
+      ? `<option value="">選択してください</option>${variantOptions}`
+      : `<option value="">画像素材未登録</option>`;
 
     if (variants.length > 0) {
-      if (findVariant(character.id, previousVariantId)) {
-        cueVariantSelect.value = previousVariantId;
-      } else {
-        cueVariantSelect.value = variants[0].id;
-      }
-
-      if (previousAfterVariantId && findVariant(character.id, previousAfterVariantId)) {
-        cueAfterVariantSelect.value = previousAfterVariantId;
-      } else {
-        cueAfterVariantSelect.value = "";
-      }
+      cueVariantSelect.value = findVariant(character.id, previousVariantId) ? previousVariantId : variants[0].id;
+      cueAfterVariantSelect.value = previousAfterVariantId && findVariant(character.id, previousAfterVariantId) ? previousAfterVariantId : "";
+      cueMouthVariantSelect.value = previousMouthVariantId && findVariant(character.id, previousMouthVariantId) ? previousMouthVariantId : "";
+      cueBlinkVariantSelect.value = previousBlinkVariantId && findVariant(character.id, previousBlinkVariantId) ? previousBlinkVariantId : "";
     }
+  }
+
+  function populateSequenceSelects() {
+    const previousMouthSequenceId = cueMouthSequenceSelect.value;
+    const previousBlinkSequenceId = cueBlinkSequenceSelect.value;
+    const character = findCharacter(cueCharacterSelect.value);
+    const sequences = character?.sequenceVariants ?? [];
+
+    const toOptions = (type) => {
+      const items = sequences.filter((sequence) => sequence.type === type || sequence.type === "generic");
+      return items.length
+        ? `<option value="">選択してください</option>${items.map((sequence) => `<option value="${escapeHtml(sequence.id)}">${escapeHtml(sequence.name)} / ${escapeHtml(sequence.type ?? "generic")} / ${Math.max(1, toNumber(sequence.fps, 8))}fps</option>`).join("")}`
+        : `<option value="">連番素材未登録</option>`;
+    };
+
+    cueMouthSequenceSelect.innerHTML = toOptions("mouth");
+    cueBlinkSequenceSelect.innerHTML = toOptions("blink");
+
+    cueMouthSequenceSelect.value = previousMouthSequenceId && findSequence(cueCharacterSelect.value, previousMouthSequenceId) ? previousMouthSequenceId : "";
+    cueBlinkSequenceSelect.value = previousBlinkSequenceId && findSequence(cueCharacterSelect.value, previousBlinkSequenceId) ? previousBlinkSequenceId : "";
+  }
+
+  function updateOverlayModeVisibility() {
+    document.querySelector('.overlay-mouth-image-field')?.classList.toggle('hidden', cueMouthModeSelect.value !== 'image');
+    document.querySelector('.overlay-mouth-sequence-field')?.classList.toggle('hidden', cueMouthModeSelect.value !== 'sequence');
+    document.querySelector('.overlay-blink-image-field')?.classList.toggle('hidden', cueBlinkModeSelect.value !== 'image');
+    document.querySelector('.overlay-blink-sequence-field')?.classList.toggle('hidden', cueBlinkModeSelect.value !== 'sequence');
   }
 
   function escapeHtml(value) {
@@ -451,18 +539,23 @@
     characterList.innerHTML = state.characters
       .map((character) => {
         const variants = character.variants ?? [];
+        const sequences = character.sequenceVariants ?? [];
         const variantHtml = variants.length
-          ? variants
-              .map(
-                (variant) => `
+          ? variants.map((variant) => `
                   <div class="variant-chip">
-                    <span>${escapeHtml(variant.name)}</span>
+                    <span>画像：${escapeHtml(variant.name)}</span>
                     <button type="button" class="mini danger" data-action="deleteVariant" data-character-id="${escapeHtml(character.id)}" data-variant-id="${escapeHtml(variant.id)}">×</button>
                   </div>
-                `
-              )
-              .join("")
-          : `<span class="muted-small">差分なし</span>`;
+                `).join("")
+          : `<span class="muted-small">画像素材なし</span>`;
+        const sequenceHtml = sequences.length
+          ? sequences.map((sequence) => `
+                  <div class="variant-chip sequence-chip">
+                    <span>連番：${escapeHtml(sequence.name)} / ${escapeHtml(sequence.type ?? "generic")} / ${Math.max(1, toNumber(sequence.fps, 8))}fps / ${sequence.frames?.length ?? 0}枚</span>
+                    <button type="button" class="mini danger" data-action="deleteSequence" data-character-id="${escapeHtml(character.id)}" data-sequence-id="${escapeHtml(sequence.id)}">×</button>
+                  </div>
+                `).join("")
+          : `<span class="muted-small">連番素材なし</span>`;
 
         return `
           <div class="character-card">
@@ -471,6 +564,7 @@
               <button type="button" class="mini danger" data-action="deleteCharacter" data-character-id="${escapeHtml(character.id)}">削除</button>
             </div>
             <div class="variant-chip-list">${variantHtml}</div>
+            <div class="variant-chip-list">${sequenceHtml}</div>
           </div>
         `;
       })
@@ -488,6 +582,19 @@
       return;
     }
 
+    const describeOverlay = (cue, kind) => {
+      const mode = cue[`${kind}Mode`] ?? "none";
+      if (mode === "image") {
+        const variant = findVariant(cue.characterId, cue[`${kind}VariantId`]);
+        return `${kind === 'mouth' ? '口パク' : 'まばたき'}：画像 / ${variant?.name ?? '未選択'}`;
+      }
+      if (mode === "sequence") {
+        const sequence = findSequence(cue.characterId, cue[`${kind}SequenceId`]);
+        return `${kind === 'mouth' ? '口パク' : 'まばたき'}：連番 / ${sequence?.name ?? '未選択'}`;
+      }
+      return `${kind === 'mouth' ? '口パク' : 'まばたき'}：なし`;
+    };
+
     cueList.innerHTML = cues
       .map((cue) => {
         const character = findCharacter(cue.characterId);
@@ -496,7 +603,9 @@
         const isEditing = state.editingCueId === cue.id;
         const flags = [
           cue.entrance ? "入場" : null,
-          cue.exit ? "退場" : `終了後：${afterVariant?.name ?? variant?.name ?? "同じ差分"}`,
+          cue.exit ? "退場" : `終了後：${afterVariant?.name ?? variant?.name ?? "同じ画像素材"}`,
+          describeOverlay(cue, 'mouth'),
+          describeOverlay(cue, 'blink'),
           cue.animation === "jump" ? "小ジャンプ" : null,
           cue.animation === "shake" ? "震え" : null
         ].filter(Boolean);
@@ -505,8 +614,8 @@
           <div class="cue-card ${isEditing ? "editing" : ""}">
             <div class="cue-main">
               <strong>${escapeHtml(character?.name ?? "不明なキャラ")}</strong>
-              <span>${escapeHtml(variant?.name ?? "差分なし")}</span>
-              <small>${formatTime(cue.start)} / ${cue.exit ? `${formatTime(cue.end)}で退場` : `${formatTime(cue.end)}以降は終了後の立ち絵`}</small>
+              <span>${escapeHtml(variant?.name ?? "画像素材なし")}</span>
+              <small>${formatTime(cue.start)} / ${cue.exit ? `${formatTime(cue.end)}で退場` : `${formatTime(cue.end)}以降は終了後の画像素材`}</small>
             </div>
             <div class="cue-meta">
               <span>位置 ${Math.round(cue.x)}, ${Math.round(cue.y)}</span>
@@ -550,7 +659,8 @@
     const character = {
       id: uid("character"),
       name,
-      variants: []
+      variants: [],
+      sequenceVariants: []
     };
     state.characters.push(character);
     characterNameInput.value = "";
@@ -611,6 +721,93 @@
     }
   }
 
+  async function addSequence() {
+    const character = findCharacter(sequenceCharacterSelect.value);
+    if (!character) {
+      alert("連番素材を追加するキャラクターを選択してください。");
+      return;
+    }
+
+    const name = trim(sequenceNameInput.value);
+    if (!name) {
+      alert("連番素材名を入力してください。例：通常口パク / 通常まばたき");
+      return;
+    }
+
+    const files = [...(sequenceImageInput.files ?? [])].sort((a, b) => compareFileNames(a.name, b.name));
+    if (!files.length) {
+      alert("連番画像ファイルを複数選択してください。");
+      return;
+    }
+
+    try {
+      addSequenceBtn.disabled = true;
+      addSequenceBtn.textContent = "読み込み中...";
+      const frames = [];
+      for (const file of files) {
+        const dataUrl = await readFileAsDataURL(file);
+        const img = await loadImage(dataUrl);
+        frames.push({
+          fileName: file.name,
+          dataUrl,
+          width: img.naturalWidth,
+          height: img.naturalHeight,
+          _img: img
+        });
+      }
+      const sequence = {
+        id: uid("sequence"),
+        name,
+        type: sequenceTypeSelect.value || "generic",
+        fps: Math.max(1, Math.round(toNumber(sequenceFpsInput.value, 8))),
+        frames
+      };
+      character.sequenceVariants ??= [];
+      character.sequenceVariants.push(sequence);
+      sequenceNameInput.value = "";
+      sequenceImageInput.value = "";
+      sequenceTypeSelect.value = "mouth";
+      sequenceFpsInput.value = "8";
+      state.lastSequenceCharacterId = character.id;
+      state.formPreviewEnabled = true;
+      sequenceCharacterSelect.value = character.id;
+      cueCharacterSelect.value = character.id;
+      renderAll();
+      if (sequence.type === 'mouth' || sequence.type === 'generic') cueMouthSequenceSelect.value = sequence.id;
+      if (sequence.type === 'blink' || sequence.type === 'generic') cueBlinkSequenceSelect.value = sequence.id;
+      renderPreview();
+    } catch (error) {
+      console.error(error);
+      alert("連番素材の読み込みに失敗しました。");
+    } finally {
+      addSequenceBtn.disabled = false;
+      addSequenceBtn.textContent = "連番素材を追加";
+    }
+  }
+
+  function deleteSequence(characterId, sequenceId) {
+    const character = findCharacter(characterId);
+    if (!character) return;
+    const sequence = findSequence(characterId, sequenceId);
+    const ok = confirm(`${sequence?.name ?? "連番素材"}を削除しますか？関連するキュー設定も解除されます。`);
+    if (!ok) return;
+
+    character.sequenceVariants = (character.sequenceVariants ?? []).filter((item) => item.id !== sequenceId);
+    state.cues = state.cues.map((cue) => {
+      const next = { ...cue };
+      if (next.mouthSequenceId === sequenceId) {
+        next.mouthSequenceId = "";
+        if (next.mouthMode === "sequence") next.mouthMode = "none";
+      }
+      if (next.blinkSequenceId === sequenceId) {
+        next.blinkSequenceId = "";
+        if (next.blinkMode === "sequence") next.blinkMode = "none";
+      }
+      return next;
+    });
+    renderAll();
+  }
+
   function deleteCharacter(characterId) {
     const character = findCharacter(characterId);
     if (!character) return;
@@ -635,7 +832,19 @@
     character.variants = character.variants.filter((item) => item.id !== variantId);
     state.cues = state.cues
       .filter((cue) => cue.variantId !== variantId)
-      .map((cue) => (cue.afterVariantId === variantId ? { ...cue, afterVariantId: "" } : cue));
+      .map((cue) => {
+        const next = { ...cue };
+        if (next.afterVariantId === variantId) next.afterVariantId = "";
+        if (next.mouthVariantId === variantId) {
+          next.mouthVariantId = "";
+          if (next.mouthMode === "image") next.mouthMode = "none";
+        }
+        if (next.blinkVariantId === variantId) {
+          next.blinkVariantId = "";
+          if (next.blinkMode === "image") next.blinkMode = "none";
+        }
+        return next;
+      });
     if (state.editingCueId && !state.cues.some((cue) => cue.id === state.editingCueId)) {
       clearCueForm(false);
     }
@@ -651,13 +860,37 @@
 
     const variant = findVariant(character.id, cueVariantSelect.value);
     if (!variant) {
-      if (!silent) alert("差分を選択してください。差分名は『笑顔』『照れ』『不安』など、表情がわかりやすい名前にすることを推奨します。");
+      if (!silent) alert("表示画像素材を選択してください。");
       return null;
     }
 
     const afterVariantId = cueAfterVariantSelect.value || "";
     if (afterVariantId && !findVariant(character.id, afterVariantId)) {
-      if (!silent) alert("終了後の立ち絵を選択し直してください。");
+      if (!silent) alert("喋り終わり後の画像素材を選択し直してください。");
+      return null;
+    }
+
+    const mouthMode = cueMouthModeSelect.value || 'none';
+    const mouthVariantId = cueMouthVariantSelect.value || '';
+    const mouthSequenceId = cueMouthSequenceSelect.value || '';
+    const blinkMode = cueBlinkModeSelect.value || 'none';
+    const blinkVariantId = cueBlinkVariantSelect.value || '';
+    const blinkSequenceId = cueBlinkSequenceSelect.value || '';
+
+    if (mouthMode === 'image' && !findVariant(character.id, mouthVariantId)) {
+      if (!silent) alert("口パク用の画像素材を選択してください。");
+      return null;
+    }
+    if (mouthMode === 'sequence' && !findSequence(character.id, mouthSequenceId)) {
+      if (!silent) alert("口パク用の連番素材を選択してください。");
+      return null;
+    }
+    if (blinkMode === 'image' && !findVariant(character.id, blinkVariantId)) {
+      if (!silent) alert("まばたき用の画像素材を選択してください。");
+      return null;
+    }
+    if (blinkMode === 'sequence' && !findSequence(character.id, blinkSequenceId)) {
+      if (!silent) alert("まばたき用の連番素材を選択してください。");
       return null;
     }
 
@@ -670,6 +903,12 @@
       characterId: character.id,
       variantId: variant.id,
       afterVariantId,
+      mouthMode,
+      mouthVariantId,
+      mouthSequenceId,
+      blinkMode,
+      blinkVariantId,
+      blinkSequenceId,
       positionPreset: cuePositionPresetSelect.value,
       start,
       end,
@@ -726,6 +965,14 @@
     populateVariantSelect();
     cueVariantSelect.value = cue.variantId;
     cueAfterVariantSelect.value = cue.afterVariantId ?? "";
+    cueMouthModeSelect.value = cue.mouthMode ?? "none";
+    cueBlinkModeSelect.value = cue.blinkMode ?? "none";
+    populateSequenceSelects();
+    cueMouthVariantSelect.value = cue.mouthVariantId ?? "";
+    cueMouthSequenceSelect.value = cue.mouthSequenceId ?? "";
+    cueBlinkVariantSelect.value = cue.blinkVariantId ?? "";
+    cueBlinkSequenceSelect.value = cue.blinkSequenceId ?? "";
+    updateOverlayModeVisibility();
     cuePositionPresetSelect.value = cue.positionPreset ?? "custom";
     cueStartInput.value = cue.start;
     cueEndInput.value = cue.end;
@@ -790,6 +1037,13 @@
     updateSliderOutputs();
     cueAnimationSelect.value = "none";
     cueAfterVariantSelect.value = "";
+    cueMouthModeSelect.value = "none";
+    cueBlinkModeSelect.value = "none";
+    cueMouthVariantSelect.value = "";
+    cueMouthSequenceSelect.value = "";
+    cueBlinkVariantSelect.value = "";
+    cueBlinkSequenceSelect.value = "";
+    updateOverlayModeVisibility();
     cueFadeInInput.value = "0.25";
     cueFadeOutInput.value = "0.25";
     cueEntranceInput.checked = false;
@@ -932,6 +1186,34 @@
     ctx.restore();
   }
 
+  function getSequenceFrame(sequence, time, cueStart) {
+    const frames = sequence?.frames ?? [];
+    if (!frames.length) return null;
+    const fps = Math.max(1, toNumber(sequence?.fps, 8));
+    const elapsed = Math.max(0, time - cueStart);
+    const index = Math.floor(elapsed * fps) % frames.length;
+    return frames[index]?._img ?? null;
+  }
+
+  function getOverlayImage(cue, time, kind) {
+    if (time < cue.start) return null;
+
+    // 口パクは「セリフ中だけ」再生。
+    // まばたきは「キャラが表示されている間」ずっとループ。
+    // 退場後は getVisibleStates 側で表示対象から外れるため、ここでは end で止めない。
+    if (kind === 'mouth' && time >= cue.end) return null;
+
+    const mode = cue[`${kind}Mode`] ?? 'none';
+    if (mode === 'image') {
+      return findVariant(cue.characterId, cue[`${kind}VariantId`])?._img ?? null;
+    }
+    if (mode === 'sequence') {
+      const sequence = findSequence(cue.characterId, cue[`${kind}SequenceId`]);
+      return getSequenceFrame(sequence, time, cue.start);
+    }
+    return null;
+  }
+
   function renderAt(time, { includeGuides = true, draftCue = null } = {}) {
     ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
@@ -960,9 +1242,17 @@
       ctx.save();
       ctx.globalAlpha = opacity;
       ctx.drawImage(img, x, y, width, height);
+
+      const mouthOverlay = getOverlayImage(cue, time, 'mouth');
+      if (mouthOverlay) ctx.drawImage(mouthOverlay, x, y, width, height);
+      const blinkOverlay = getOverlayImage(cue, time, 'blink');
+      if (blinkOverlay) ctx.drawImage(blinkOverlay, x, y, width, height);
       ctx.restore();
 
-      visibleNames.push(`${character?.name ?? "不明"}：${variant?.name ?? "差分なし"}`);
+      const activeOverlays = [];
+      if (cue.mouthMode && cue.mouthMode !== 'none' && time >= cue.start && time < cue.end) activeOverlays.push(`口:${cue.mouthMode === 'image' ? '画像' : '連番'}`);
+      if (cue.blinkMode && cue.blinkMode !== 'none' && time >= cue.start) activeOverlays.push(`目:${cue.blinkMode === 'image' ? '画像' : '連番'}`);
+      visibleNames.push(`${character?.name ?? "不明"}：${variant?.name ?? "差分なし"}${activeOverlays.length ? ` (${activeOverlays.join(' / ')})` : ''}`);
     }
 
     if (includeGuides) {
@@ -1147,6 +1437,7 @@
       if (event.key === "Enter") addCharacter();
     });
     addVariantBtn.addEventListener("click", addVariant);
+    addSequenceBtn.addEventListener("click", addSequence);
 
     characterList.addEventListener("click", (event) => {
       const button = event.target.closest("button[data-action]");
@@ -1154,14 +1445,20 @@
       const action = button.dataset.action;
       if (action === "deleteCharacter") deleteCharacter(button.dataset.characterId);
       if (action === "deleteVariant") deleteVariant(button.dataset.characterId, button.dataset.variantId);
+      if (action === "deleteSequence") deleteSequence(button.dataset.characterId, button.dataset.sequenceId);
     });
 
     variantCharacterSelect.addEventListener("change", () => {
       state.lastVariantCharacterId = variantCharacterSelect.value;
     });
+    sequenceCharacterSelect.addEventListener("change", () => {
+      state.lastSequenceCharacterId = sequenceCharacterSelect.value;
+    });
 
     cueCharacterSelect.addEventListener("change", () => {
       populateVariantSelect();
+      populateSequenceSelects();
+      updateOverlayModeVisibility();
       markFormPreview({ syncToStart: true });
     });
 
@@ -1223,13 +1520,20 @@
     });
 
     previewZoomInput.addEventListener("input", () => {
-      state.settings.previewZoom = toNumber(previewZoomInput.value, 32);
+      state.settings.previewZoom = toNumber(previewZoomInput.value, 40);
       applyPreviewDisplaySettings();
     });
 
     previewBgSelect.addEventListener("change", () => {
       state.settings.previewBg = previewBgSelect.value;
       applyPreviewDisplaySettings();
+    });
+
+    [cueMouthModeSelect, cueBlinkModeSelect].forEach((select) => {
+      select.addEventListener("change", () => {
+        updateOverlayModeVisibility();
+        markFormPreview({ syncToStart: true });
+      });
     });
 
     [
@@ -1267,7 +1571,11 @@
       cueEntranceInput,
       cueExitInput,
       cueVariantSelect,
-      cueAfterVariantSelect
+      cueAfterVariantSelect,
+      cueMouthVariantSelect,
+      cueMouthSequenceSelect,
+      cueBlinkVariantSelect,
+      cueBlinkSequenceSelect
     ].forEach((element) => {
       const eventName = element.tagName === "SELECT" || element.type === "checkbox" ? "change" : "input";
       element.addEventListener(eventName, () => {

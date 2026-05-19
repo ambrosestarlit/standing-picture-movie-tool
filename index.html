@@ -10,7 +10,7 @@
   <header class="app-header">
     <div>
       <h1>ADV Standing Picture Movie Tool</h1>
-      <p>音声に合わせてキャラクター立ち絵・表情差分を切り替える透過PNG連番生成ツール</p>
+      <p>音声に合わせてキャラクター立ち絵・口パク・まばたきを切り替える透過PNG連番生成ツール</p>
     </div>
     <div class="header-actions">
       <button id="saveJsonBtn" type="button">JSON保存</button>
@@ -26,6 +26,17 @@
   <main class="app-layout">
     <aside class="panel controls-panel">
       <details open>
+        <summary>音声ファイル登録</summary>
+        <div class="control-stack">
+          <label class="field">
+            <span>音声ファイル</span>
+            <input id="audioInput" type="file" accept="audio/*" />
+            <small id="audioStatus" class="audio-status">音声未読込：音声を読み込むとJSON保存・キャッシュ保存にも含まれます。</small>
+          </label>
+        </div>
+      </details>
+
+      <details open>
         <summary>キャラクター登録</summary>
         <div class="control-stack">
           <div class="inline-form">
@@ -34,22 +45,57 @@
           </div>
 
           <div class="variant-register-box">
+            <strong class="material-box-title">画像素材登録</strong>
             <label class="field">
-              <span>差分を追加するキャラクター</span>
+              <span>画像素材を追加するキャラクター</span>
               <select id="variantCharacterSelect"></select>
             </label>
             <div class="grid-2">
               <label class="field">
-                <span>差分名</span>
-                <input id="variantNameInput" type="text" placeholder="笑顔 / 困り顔 / 怒り など" />
+                <span>画像素材名</span>
+                <input id="variantNameInput" type="text" placeholder="通常 / 笑顔 / 目閉じ など" />
               </label>
               <label class="field">
-                <span>立ち絵画像</span>
+                <span>画像素材</span>
                 <input id="variantImageInput" type="file" accept="image/*" />
               </label>
             </div>
-            <p class="hint">差分名は「笑顔」「照れ」「不安」など、表情がわかりやすい名前にすることを推奨します。</p>
-            <button id="addVariantBtn" type="button">差分を追加</button>
+            <p class="hint">画像素材名は「通常」「笑顔」「目閉じ」など、用途がわかりやすい名前にすることを推奨します。</p>
+            <button id="addVariantBtn" type="button">画像素材を追加</button>
+          </div>
+
+          <div class="variant-register-box sequence-register-box">
+            <strong class="material-box-title">連番素材登録</strong>
+            <label class="field">
+              <span>連番素材を追加するキャラクター</span>
+              <select id="sequenceCharacterSelect"></select>
+            </label>
+            <div class="grid-2">
+              <label class="field">
+                <span>連番素材名</span>
+                <input id="sequenceNameInput" type="text" placeholder="通常口パク / 通常まばたき など" />
+              </label>
+              <label class="field">
+                <span>用途</span>
+                <select id="sequenceTypeSelect">
+                  <option value="mouth">口パク</option>
+                  <option value="blink">まばたき</option>
+                  <option value="generic">汎用</option>
+                </select>
+              </label>
+            </div>
+            <div class="grid-2">
+              <label class="field">
+                <span>連番FPS</span>
+                <input id="sequenceFpsInput" type="number" min="1" max="60" step="1" value="8" />
+              </label>
+              <label class="field">
+                <span>連番画像ファイル</span>
+                <input id="sequenceImageInput" type="file" accept="image/*" multiple />
+              </label>
+            </div>
+            <p class="hint">ベース素材・口パク素材・まばたき素材は、同じキャンバスサイズで書き出してください。サイズが一致していれば位置調整なしで重ねて再生できます。ファイル名順に並べて読み込みます。</p>
+            <button id="addSequenceBtn" type="button">連番素材を追加</button>
           </div>
 
           <div id="characterList" class="character-list"></div>
@@ -150,21 +196,15 @@
         <div id="activeCueInfo" class="active-cue-info">表示中の立ち絵なし</div>
       </div>
 
+      <div class="preview-audio-player-row" aria-label="音声再生">
+        <audio id="audioPlayer" controls></audio>
+      </div>
+
       <div id="canvasWrap" class="canvas-wrap preview-bg-mint">
         <canvas id="previewCanvas" width="1920" height="1080"></canvas>
       </div>
 
       <div class="quick-cue-panel" aria-label="立ち絵キュー入力">
-        <div class="quick-material-panel">
-          <div class="material-title">素材・再生</div>
-          <label class="field">
-            <span>音声ファイル</span>
-            <input id="audioInput" type="file" accept="audio/*" />
-            <small id="audioStatus" class="audio-status">音声未読込：音声を読み込むとJSON保存・キャッシュ保存にも含まれます。</small>
-          </label>
-          <audio id="audioPlayer" controls></audio>
-        </div>
-
         <div class="quick-cue-grid">
           <label class="field quick-character-field">
             <span>キャラ選択</span>
@@ -172,12 +212,12 @@
           </label>
 
           <label class="field quick-variant-field">
-            <span>差分選択</span>
+            <span>表示画像素材</span>
             <select id="cueVariantSelect"></select>
           </label>
 
           <label class="field quick-after-variant-field">
-            <span>終了後の立ち絵</span>
+            <span>喋り終わり後の画像素材</span>
             <select id="cueAfterVariantSelect"></select>
           </label>
 
@@ -192,6 +232,46 @@
               <option value="custom">自由指定</option>
             </select>
           </label>
+
+          <div class="overlay-settings-block">
+                <p class="hint overlay-hint">口パク・まばたきは「画像素材」と「連番素材」の両方に対応しています。連番素材は表示中にループ再生され、台詞終了後は自動停止します。</p>
+                <div class="quick-overlay-grid">
+                  <label class="field">
+                    <span>口パク</span>
+                    <select id="cueMouthModeSelect">
+                      <option value="none">なし</option>
+                      <option value="image">画像素材</option>
+                      <option value="sequence">連番素材</option>
+                    </select>
+                  </label>
+                  <label class="field overlay-mouth-image-field">
+                    <span>口パク画像素材</span>
+                    <select id="cueMouthVariantSelect"></select>
+                  </label>
+                  <label class="field overlay-mouth-sequence-field">
+                    <span>口パク連番素材</span>
+                    <select id="cueMouthSequenceSelect"></select>
+                  </label>
+                </div>
+                <div class="quick-overlay-grid">
+                  <label class="field">
+                    <span>まばたき</span>
+                    <select id="cueBlinkModeSelect">
+                      <option value="none">なし</option>
+                      <option value="image">画像素材</option>
+                      <option value="sequence">連番素材</option>
+                    </select>
+                  </label>
+                  <label class="field overlay-blink-image-field">
+                    <span>まばたき画像素材</span>
+                    <select id="cueBlinkVariantSelect"></select>
+                  </label>
+                  <label class="field overlay-blink-sequence-field">
+                    <span>まばたき連番素材</span>
+                    <select id="cueBlinkSequenceSelect"></select>
+                  </label>
+                </div>
+              </div>
 
           <div class="quick-slider-panel" aria-label="立ち絵位置・サイズ調整">
             <div class="slider-head">
@@ -280,7 +360,7 @@
                   <span>退場：台詞終了時にフェードアウト</span>
                 </label>
               </div>
-              <p class="hint">退場を入れない場合、台詞終了秒以降は「終了後の立ち絵」に自動で切り替わります。</p>
+              <p class="hint">退場を入れない場合、台詞終了秒以降は「喋り終わり後の画像素材」に自動で切り替わります。</p>
 
               <div class="button-row quick-time-buttons">
                 <button id="setStartFromAudioBtn" type="button">現在時刻を開始へ</button>
