@@ -26,6 +26,26 @@
   <main class="app-layout">
     <aside class="panel controls-panel">
       <details open>
+        <summary>シーン管理</summary>
+        <div class="control-stack scene-control-stack">
+          <label class="field">
+            <span>シーン選択</span>
+            <select id="sceneSelect"></select>
+          </label>
+          <div class="inline-form scene-inline-form">
+            <input id="sceneNameInput" type="text" placeholder="シーン名" />
+            <button id="addSceneBtn" type="button">追加</button>
+            <button id="renameSceneBtn" type="button">名前変更</button>
+          </div>
+          <div class="button-row">
+            <button id="duplicateSceneBtn" type="button">複製</button>
+            <button id="deleteSceneBtn" type="button" class="danger">削除</button>
+          </div>
+          <p id="sceneStatus" class="hint">シーンごとに音声・立ち絵キューを保存します。キャラクター素材はプロジェクト共通です。</p>
+        </div>
+      </details>
+
+      <details open>
         <summary>音声ファイル登録</summary>
         <div class="control-stack">
           <label class="field">

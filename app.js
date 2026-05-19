@@ -34,6 +34,14 @@
   const saveCacheBtn = $("#saveCacheBtn");
   const loadCacheBtn = $("#loadCacheBtn");
 
+  const sceneSelect = $("#sceneSelect");
+  const sceneNameInput = $("#sceneNameInput");
+  const addSceneBtn = $("#addSceneBtn");
+  const renameSceneBtn = $("#renameSceneBtn");
+  const duplicateSceneBtn = $("#duplicateSceneBtn");
+  const deleteSceneBtn = $("#deleteSceneBtn");
+  const sceneStatus = $("#sceneStatus");
+
   const characterNameInput = $("#characterNameInput");
   const addCharacterBtn = $("#addCharacterBtn");
   const variantCharacterSelect = $("#variantCharacterSelect");
@@ -98,6 +106,8 @@
 
   const state = {
     characters: [],
+    scenes: [],
+    currentSceneId: "",
     cues: [],
     editingCueId: null,
     audioObjectUrl: null,
@@ -148,6 +158,133 @@
     if (size >= 1024 * 1024) return `${(size / 1024 / 1024).toFixed(1)}MB`;
     if (size >= 1024) return `${(size / 1024).toFixed(1)}KB`;
     return `${Math.round(size)}B`;
+  }
+
+  function createScene(name = "シーン1", source = {}) {
+    return {
+      id: source.id || uid("scene"),
+      name: trim(source.name) || name,
+      cues: Array.isArray(source.cues) ? source.cues.map((cue) => ({ ...cue })) : [],
+      audioDataUrl: String(source.audioDataUrl ?? source.audio?.dataUrl ?? ""),
+      audioFileName: String(source.audioFileName ?? source.audio?.fileName ?? ""),
+      audioMimeType: String(source.audioMimeType ?? source.audio?.mimeType ?? ""),
+      audioSize: toNumber(source.audioSize ?? source.audio?.size, 0)
+    };
+  }
+
+  function ensureScenes() {
+    if (!Array.isArray(state.scenes) || state.scenes.length === 0) {
+      state.scenes = [
+        createScene("シーン1", {
+          cues: state.cues,
+          audioDataUrl: state.audioDataUrl,
+          audioFileName: state.audioFileName,
+          audioMimeType: state.audioMimeType,
+          audioSize: state.audioSize
+        })
+      ];
+    }
+    if (!state.currentSceneId || !state.scenes.some((scene) => scene.id === state.currentSceneId)) {
+      state.currentSceneId = state.scenes[0].id;
+    }
+  }
+
+  function getCurrentScene() {
+    ensureScenes();
+    return state.scenes.find((scene) => scene.id === state.currentSceneId) ?? state.scenes[0];
+  }
+
+  function captureCurrentScene() {
+    const scene = getCurrentScene();
+    if (!scene) return;
+    scene.cues = state.cues.map((cue) => ({ ...cue }));
+    scene.audioDataUrl = state.audioDataUrl;
+    scene.audioFileName = state.audioFileName;
+    scene.audioMimeType = state.audioMimeType;
+    scene.audioSize = state.audioSize;
+  }
+
+  function applySceneToState(scene) {
+    state.currentSceneId = scene.id;
+    state.cues = (scene.cues ?? []).map((cue) => ({ ...cue }));
+    state.audioDataUrl = scene.audioDataUrl || "";
+    state.audioFileName = scene.audioFileName || "";
+    state.audioMimeType = scene.audioMimeType || "";
+    state.audioSize = toNumber(scene.audioSize, 0);
+    state.editingCueId = null;
+    state.formPreviewEnabled = false;
+    if (audioInput) audioInput.value = "";
+    setAudioSourceFromState();
+    syncPreviewTime(0);
+  }
+
+  function populateSceneSelect() {
+    ensureScenes();
+    if (!sceneSelect) return;
+    sceneSelect.innerHTML = state.scenes
+      .map((scene, index) => `<option value="${escapeHtml(scene.id)}">${escapeHtml(scene.name || `シーン${index + 1}`)}</option>`)
+      .join("");
+    sceneSelect.value = state.currentSceneId;
+    const scene = getCurrentScene();
+    if (sceneNameInput && document.activeElement !== sceneNameInput) sceneNameInput.value = scene?.name ?? "";
+    if (sceneStatus) {
+      const cueCount = state.cues.length;
+      const audioText = state.audioDataUrl ? `音声あり：${state.audioFileName || "音声ファイル"}` : "音声なし";
+      sceneStatus.textContent = `現在：${scene?.name ?? "シーン"} / キュー${cueCount}件 / ${audioText}`;
+    }
+  }
+
+  function addScene() {
+    captureCurrentScene();
+    const currentName = getCurrentScene()?.name ?? "";
+    const typedName = trim(sceneNameInput.value);
+    const name = typedName && typedName !== currentName ? typedName : `シーン${state.scenes.length + 1}`;
+    const scene = createScene(name);
+    state.scenes.push(scene);
+    applySceneToState(scene);
+    renderAll();
+  }
+
+  function renameScene() {
+    const scene = getCurrentScene();
+    const name = trim(sceneNameInput.value);
+    if (!name) {
+      alert("シーン名を入力してください。");
+      return;
+    }
+    scene.name = name;
+    populateSceneSelect();
+  }
+
+  function duplicateScene() {
+    captureCurrentScene();
+    const source = getCurrentScene();
+    const copy = createScene(`${source.name || "シーン"} コピー`, {
+      cues: source.cues,
+      audioDataUrl: source.audioDataUrl,
+      audioFileName: source.audioFileName,
+      audioMimeType: source.audioMimeType,
+      audioSize: source.audioSize
+    });
+    state.scenes.push(copy);
+    applySceneToState(copy);
+    renderAll();
+  }
+
+  function deleteScene() {
+    ensureScenes();
+    if (state.scenes.length <= 1) {
+      alert("シーンは最低1つ必要です。");
+      return;
+    }
+    const scene = getCurrentScene();
+    const ok = confirm(`${scene.name || "現在のシーン"}を削除しますか？`);
+    if (!ok) return;
+    const index = state.scenes.findIndex((item) => item.id === scene.id);
+    state.scenes = state.scenes.filter((item) => item.id !== scene.id);
+    const nextScene = state.scenes[Math.max(0, Math.min(index, state.scenes.length - 1))];
+    applySceneToState(nextScene);
+    renderAll();
   }
 
   function updateSliderOutputs() {
@@ -305,8 +442,23 @@
   }
 
   function cleanProject() {
+    captureCurrentScene();
+    const scenes = state.scenes.map((scene) => ({
+      id: scene.id,
+      name: scene.name,
+      cues: (scene.cues ?? []).map((cue) => ({ ...cue })),
+      audio: scene.audioDataUrl
+        ? {
+            fileName: scene.audioFileName,
+            mimeType: scene.audioMimeType,
+            size: scene.audioSize,
+            dataUrl: scene.audioDataUrl
+          }
+        : null
+    }));
+
     return {
-      version: 1,
+      version: 2,
       characters: state.characters.map((character) => ({
         id: character.id,
         name: character.name,
@@ -331,6 +483,9 @@
           }))
         }))
       })),
+      scenes,
+      currentSceneId: state.currentSceneId,
+      // 旧形式との互換用：現在のシーンもトップレベルに残します。
       cues: state.cues.map((cue) => ({ ...cue })),
       settings: { ...state.settings },
       audio: state.audioDataUrl
@@ -346,7 +501,6 @@
 
   async function setProject(project) {
     state.characters = Array.isArray(project.characters) ? project.characters : [];
-    state.cues = Array.isArray(project.cues) ? project.cues : [];
     state.settings = {
       showGrid: Boolean(project.settings?.showGrid),
       showSafeArea: Boolean(project.settings?.showSafeArea),
@@ -357,23 +511,39 @@
       character.variants ??= [];
       character.sequenceVariants ??= [];
     }
+
+    if (Array.isArray(project.scenes) && project.scenes.length > 0) {
+      state.scenes = project.scenes.map((scene, index) => createScene(scene.name || `シーン${index + 1}`, {
+        id: scene.id,
+        name: scene.name,
+        cues: scene.cues,
+        audio: scene.audio
+      }));
+      state.currentSceneId = project.currentSceneId && state.scenes.some((scene) => scene.id === project.currentSceneId)
+        ? project.currentSceneId
+        : state.scenes[0].id;
+    } else {
+      state.scenes = [
+        createScene("シーン1", {
+          cues: Array.isArray(project.cues) ? project.cues : [],
+          audio: project.audio
+        })
+      ];
+      state.currentSceneId = state.scenes[0].id;
+    }
+
     state.editingCueId = null;
     state.formPreviewEnabled = false;
     state.lastVariantCharacterId = state.characters[0]?.id ?? null;
     state.lastSequenceCharacterId = state.characters[0]?.id ?? null;
 
-    if (project.audio?.dataUrl) {
-      state.audioDataUrl = String(project.audio.dataUrl);
-      state.audioFileName = String(project.audio.fileName ?? "");
-      state.audioMimeType = String(project.audio.mimeType ?? "");
-      state.audioSize = toNumber(project.audio.size, 0);
-    } else {
-      state.audioDataUrl = "";
-      state.audioFileName = "";
-      state.audioMimeType = "";
-      state.audioSize = 0;
-    }
-    audioInput.value = "";
+    const currentScene = getCurrentScene();
+    state.cues = (currentScene.cues ?? []).map((cue) => ({ ...cue }));
+    state.audioDataUrl = currentScene.audioDataUrl || "";
+    state.audioFileName = currentScene.audioFileName || "";
+    state.audioMimeType = currentScene.audioMimeType || "";
+    state.audioSize = toNumber(currentScene.audioSize, 0);
+    if (audioInput) audioInput.value = "";
     setAudioSourceFromState();
 
     showGridInput.checked = state.settings.showGrid;
@@ -384,6 +554,7 @@
 
     await hydrateImages();
     renderAll();
+    syncPreviewTime(0);
   }
 
   function downloadBlob(blob, fileName) {
@@ -641,6 +812,7 @@
   }
 
   function renderAll() {
+    populateSceneSelect();
     populateCharacterSelects();
     renderCharacterList();
     renderCueList();
@@ -956,6 +1128,7 @@
 
     state.editingCueId = null;
     state.formPreviewEnabled = false;
+    captureCurrentScene();
     syncPreviewTime(cue.start);
     renderAll();
   }
@@ -1018,6 +1191,7 @@
     if (state.editingCueId === cueId) {
       clearCueForm(false);
     }
+    captureCurrentScene();
     renderAll();
   }
 
@@ -1358,6 +1532,21 @@
   }
 
   function bindEvents() {
+    sceneSelect.addEventListener("change", () => {
+      captureCurrentScene();
+      const scene = state.scenes.find((item) => item.id === sceneSelect.value);
+      if (!scene) return;
+      applySceneToState(scene);
+      renderAll();
+    });
+    addSceneBtn.addEventListener("click", addScene);
+    renameSceneBtn.addEventListener("click", renameScene);
+    duplicateSceneBtn.addEventListener("click", duplicateScene);
+    deleteSceneBtn.addEventListener("click", deleteScene);
+    sceneNameInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") renameScene();
+    });
+
     audioInput.addEventListener("change", async () => {
       const file = audioInput.files?.[0];
       if (!file) return;
@@ -1371,6 +1560,8 @@
         state.audioMimeType = file.type || "audio/*";
         state.audioSize = file.size;
         setAudioSourceFromState();
+        captureCurrentScene();
+        populateSceneSelect();
       } catch (error) {
         console.error(error);
         alert("音声ファイルの読み込みに失敗しました。");
@@ -1592,6 +1783,8 @@
   }
 
   async function init() {
+    ensureScenes();
+    applySceneToState(getCurrentScene());
     bindEvents();
     clearCueForm(false);
     updateAudioStatus();

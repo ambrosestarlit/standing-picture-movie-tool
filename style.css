@@ -1162,3 +1162,21 @@ button.mini.danger {
     grid-template-rows: auto auto auto auto;
   }
 }
+
+
+/* scene management */
+.scene-control-stack {
+  gap: 0.55rem;
+}
+
+.scene-inline-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+}
+
+@media (max-width: 720px) {
+  .scene-inline-form {
+    grid-template-columns: 1fr;
+  }
+}
