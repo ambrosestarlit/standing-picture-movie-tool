@@ -80,6 +80,14 @@
   const cueYNumberInput = $("#cueYNumberInput");
   const cueScaleNumberInput = $("#cueScaleNumberInput");
   const cueAnimationSelect = $("#cueAnimationSelect");
+  const cueJumpPowerInput = $("#cueJumpPowerInput");
+  const cueJumpSpeedInput = $("#cueJumpSpeedInput");
+  const cueShakePowerInput = $("#cueShakePowerInput");
+  const cueShakeSpeedInput = $("#cueShakeSpeedInput");
+  const cueJumpPowerOutput = $("#cueJumpPowerOutput");
+  const cueJumpSpeedOutput = $("#cueJumpSpeedOutput");
+  const cueShakePowerOutput = $("#cueShakePowerOutput");
+  const cueShakeSpeedOutput = $("#cueShakeSpeedOutput");
   const cueFadeInInput = $("#cueFadeInInput");
   const cueFadeOutInput = $("#cueFadeOutInput");
   const cueEntranceInput = $("#cueEntranceInput");
@@ -312,6 +320,18 @@
     numberInput.value = rangeInput.step && String(rangeInput.step).includes('.')
       ? Number(value).toFixed(String(rangeInput.step).split('.')[1].length)
       : String(Math.round(value));
+  }
+
+  function updateAnimationTuneOutputs() {
+    const jumpPower = Math.round(toNumber(cueJumpPowerInput?.value, 42));
+    const jumpSpeed = toNumber(cueJumpSpeedInput?.value, 1);
+    const shakePower = Math.round(toNumber(cueShakePowerInput?.value, 8));
+    const shakeSpeed = toNumber(cueShakeSpeedInput?.value, 1);
+
+    if (cueJumpPowerOutput) cueJumpPowerOutput.value = `${jumpPower}px`;
+    if (cueJumpSpeedOutput) cueJumpSpeedOutput.value = `${jumpSpeed.toFixed(1)}x`;
+    if (cueShakePowerOutput) cueShakePowerOutput.value = `${shakePower}px`;
+    if (cueShakeSpeedOutput) cueShakeSpeedOutput.value = `${shakeSpeed.toFixed(1)}x`;
   }
 
   function applyPreviewDisplaySettings() {
@@ -1089,6 +1109,10 @@
       y: toNumber(cueYInput.value, 1040),
       scale: Math.max(0.05, toNumber(cueScaleInput.value, 1)),
       animation: cueAnimationSelect.value,
+      jumpPower: Math.max(0, toNumber(cueJumpPowerInput.value, 42)),
+      jumpSpeed: clamp(toNumber(cueJumpSpeedInput.value, 1), 0.2, 3),
+      shakePower: Math.max(0, toNumber(cueShakePowerInput.value, 8)),
+      shakeSpeed: clamp(toNumber(cueShakeSpeedInput.value, 1), 0.2, 3),
       entrance: cueEntranceInput.checked,
       exit: cueExitInput.checked,
       fadeIn: Math.max(0, toNumber(cueFadeInInput.value, 0.25)),
@@ -1155,6 +1179,11 @@
     cueScaleInput.value = cue.scale;
     updateSliderOutputs();
     cueAnimationSelect.value = cue.animation ?? "none";
+    cueJumpPowerInput.value = cue.jumpPower ?? 42;
+    cueJumpSpeedInput.value = cue.jumpSpeed ?? 1;
+    cueShakePowerInput.value = cue.shakePower ?? 8;
+    cueShakeSpeedInput.value = cue.shakeSpeed ?? 1;
+    updateAnimationTuneOutputs();
     cueFadeInInput.value = cue.fadeIn ?? 0.25;
     cueFadeOutInput.value = cue.fadeOut ?? 0.25;
     cueEntranceInput.checked = Boolean(cue.entrance);
@@ -1218,6 +1247,11 @@
     cueBlinkVariantSelect.value = "";
     cueBlinkSequenceSelect.value = "";
     updateOverlayModeVisibility();
+    cueJumpPowerInput.value = "42";
+    cueJumpSpeedInput.value = "1";
+    cueShakePowerInput.value = "8";
+    cueShakeSpeedInput.value = "1";
+    updateAnimationTuneOutputs();
     cueFadeInInput.value = "0.25";
     cueFadeOutInput.value = "0.25";
     cueEntranceInput.checked = false;
@@ -1305,17 +1339,21 @@
   function getCueOffset(cue, time) {
     const elapsed = Math.max(0, time - cue.start);
     if (cue.animation === "jump") {
-      const duration = 0.46;
+      const power = Math.max(0, toNumber(cue.jumpPower, 42));
+      const speed = clamp(toNumber(cue.jumpSpeed, 1), 0.2, 3);
+      const duration = 0.46 / speed;
       if (elapsed <= duration) {
         const progress = elapsed / duration;
-        return { x: 0, y: -42 * Math.sin(Math.PI * progress) };
+        return { x: 0, y: -power * Math.sin(Math.PI * progress) };
       }
     }
 
     if (cue.animation === "shake" && time >= cue.start && time <= cue.end) {
+      const power = Math.max(0, toNumber(cue.shakePower, 8));
+      const speed = clamp(toNumber(cue.shakeSpeed, 1), 0.2, 3);
       return {
-        x: Math.sin(elapsed * 62) * 8 + Math.sin(elapsed * 37) * 3,
-        y: Math.sin(elapsed * 83) * 4
+        x: Math.sin(elapsed * 62 * speed) * power + Math.sin(elapsed * 37 * speed) * power * 0.38,
+        y: Math.sin(elapsed * 83 * speed) * power * 0.5
       };
     }
 
@@ -1759,6 +1797,10 @@
       cueFadeInInput,
       cueFadeOutInput,
       cueAnimationSelect,
+      cueJumpPowerInput,
+      cueJumpSpeedInput,
+      cueShakePowerInput,
+      cueShakeSpeedInput,
       cueEntranceInput,
       cueExitInput,
       cueVariantSelect,
@@ -1773,6 +1815,14 @@
         if (element === cueXInput || element === cueYInput || element === cueScaleInput) {
           updateSliderOutputs();
           cuePositionPresetSelect.value = "custom";
+        }
+        if (
+          element === cueJumpPowerInput ||
+          element === cueJumpSpeedInput ||
+          element === cueShakePowerInput ||
+          element === cueShakeSpeedInput
+        ) {
+          updateAnimationTuneOutputs();
         }
         markFormPreview({ syncToStart: true });
       });

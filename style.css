@@ -1180,3 +1180,52 @@ button.mini.danger {
     grid-template-columns: 1fr;
   }
 }
+
+
+/* animation tuning sliders */
+.animation-tune-panel {
+  grid-column: 1 / 6;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(110px, 1fr));
+  gap: 0.42rem;
+  border: 1px solid rgba(199, 217, 232, 0.86);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.72);
+  padding: 0.48rem;
+}
+
+.animation-slider-field {
+  gap: 0.24rem;
+}
+
+.animation-slider-field span {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.animation-slider-field output {
+  min-width: 3.3rem;
+  border: 1px solid rgba(199, 217, 232, 0.9);
+  border-radius: 999px;
+  background: rgba(239, 248, 255, 0.92);
+  color: #23465e;
+  padding: 0.1rem 0.38rem;
+  text-align: center;
+  font-size: 0.74rem;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 1180px) {
+  .animation-tune-panel {
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .animation-tune-panel {
+    grid-template-columns: 1fr;
+  }
+}
