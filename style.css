@@ -1229,3 +1229,118 @@ button.mini.danger {
     grid-template-columns: 1fr;
   }
 }
+
+
+/* manual modal */
+.manual-dialog {
+  width: min(920px, calc(100vw - 2rem));
+  max-height: min(86vh, 820px);
+  border: 1px solid rgba(178, 206, 226, 0.9);
+  border-radius: 22px;
+  padding: 0;
+  background: transparent;
+  box-shadow: 0 28px 80px rgba(43, 74, 100, 0.28);
+}
+
+.manual-dialog::backdrop {
+  background: rgba(31, 52, 70, 0.36);
+  backdrop-filter: blur(4px);
+}
+
+.manual-modal {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  max-height: min(86vh, 820px);
+  background: rgba(255, 255, 255, 0.98);
+  color: var(--text);
+  overflow: hidden;
+}
+
+.manual-modal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.1rem;
+  border-bottom: 1px solid rgba(199, 217, 232, 0.86);
+  background: linear-gradient(180deg, rgba(236, 248, 255, 0.98), rgba(255, 255, 255, 0.98));
+}
+
+.manual-modal-head h2 {
+  margin: 0;
+  color: #23465e;
+  font-size: 1.28rem;
+}
+
+.manual-modal-head p {
+  margin: 0.28rem 0 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.manual-close-button {
+  flex: 0 0 auto;
+}
+
+.manual-modal-body {
+  overflow: auto;
+  padding: 1rem 1.18rem 1.2rem;
+  display: grid;
+  gap: 0.82rem;
+}
+
+.manual-modal-body section {
+  border: 1px solid rgba(199, 217, 232, 0.7);
+  border-radius: 16px;
+  background: rgba(248, 252, 255, 0.82);
+  padding: 0.85rem 0.95rem;
+}
+
+.manual-modal-body h3 {
+  margin: 0 0 0.45rem;
+  color: #23465e;
+  font-size: 1rem;
+}
+
+.manual-modal-body p,
+.manual-modal-body li {
+  color: var(--text);
+  line-height: 1.72;
+  font-size: 0.92rem;
+}
+
+.manual-modal-body p {
+  margin: 0.25rem 0;
+}
+
+.manual-modal-body ol,
+.manual-modal-body ul {
+  margin: 0.35rem 0 0;
+  padding-left: 1.35rem;
+}
+
+.manual-note {
+  border-left: 4px solid var(--accent);
+  border-radius: 8px;
+  background: rgba(232, 247, 255, 0.9);
+  padding: 0.55rem 0.65rem;
+}
+
+@media (max-width: 720px) {
+  .manual-dialog {
+    width: calc(100vw - 1rem);
+    max-height: 90vh;
+  }
+
+  .manual-modal {
+    max-height: 90vh;
+  }
+
+  .manual-modal-head {
+    flex-direction: column;
+  }
+
+  .manual-close-button {
+    width: 100%;
+  }
+}

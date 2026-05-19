@@ -18,6 +18,10 @@
 
   const $ = (selector) => document.querySelector(selector);
 
+  const openManualBtn = $("#openManualBtn");
+  const manualDialog = $("#manualDialog");
+  const closeManualBtn = $("#closeManualBtn");
+
   const canvas = $("#previewCanvas");
   const ctx = canvas.getContext("2d", { alpha: true });
   const canvasWrap = $("#canvasWrap");
@@ -1570,6 +1574,18 @@
   }
 
   function bindEvents() {
+    openManualBtn?.addEventListener("click", () => {
+      if (manualDialog?.showModal) {
+        manualDialog.showModal();
+      } else {
+        alert("取扱説明書はこのブラウザではポップアップ表示に対応していません。README.txtをご確認ください。");
+      }
+    });
+    closeManualBtn?.addEventListener("click", () => manualDialog?.close());
+    manualDialog?.addEventListener("click", (event) => {
+      if (event.target === manualDialog) manualDialog.close();
+    });
+
     sceneSelect.addEventListener("change", () => {
       captureCurrentScene();
       const scene = state.scenes.find((item) => item.id === sceneSelect.value);

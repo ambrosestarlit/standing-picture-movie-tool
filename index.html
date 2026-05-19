@@ -13,6 +13,7 @@
       <p>音声に合わせてキャラクター立ち絵・口パク・まばたきを切り替える透過PNG連番生成ツール</p>
     </div>
     <div class="header-actions">
+      <button id="openManualBtn" type="button">取扱説明書</button>
       <button id="saveJsonBtn" type="button">JSON保存</button>
       <label class="file-button">
         JSON読込
@@ -418,6 +419,110 @@
       </div>
     </section>
   </main>
+
+
+  <dialog id="manualDialog" class="manual-dialog" aria-labelledby="manualTitle">
+    <div class="manual-modal">
+      <div class="manual-modal-head">
+        <div>
+          <h2 id="manualTitle">取扱説明書</h2>
+          <p>音声に合わせて立ち絵・口パク・まばたき・アニメーションを切り替えるための基本手順です。</p>
+        </div>
+        <button id="closeManualBtn" type="button" class="manual-close-button">閉じる</button>
+      </div>
+
+      <div class="manual-modal-body">
+        <section>
+          <h3>1. 基本の流れ</h3>
+          <ol>
+            <li>「シーン管理」で作業するシーンを作成または選択します。</li>
+            <li>「音声ファイル登録」で、そのシーンに使う音声を読み込みます。</li>
+            <li>「キャラクター登録」でキャラクターを追加します。</li>
+            <li>画像素材・連番素材を登録します。</li>
+            <li>右側のキュー入力で、表示画像素材・口パク・まばたき・開始秒・終了秒などを設定します。</li>
+            <li>「キュー追加」を押すと、現在のシーンに立ち絵キューが追加されます。</li>
+            <li>必要に応じて透過PNG連番ZIPを書き出します。</li>
+          </ol>
+        </section>
+
+        <section>
+          <h3>2. シーン管理</h3>
+          <p>1つのプロジェクト内に複数シーンを保存できます。キャラクター素材・画像素材・連番素材はプロジェクト共通、音声ファイルと立ち絵キューはシーンごとに保存されます。</p>
+          <ul>
+            <li><strong>追加</strong>：新しい空シーンを作成します。</li>
+            <li><strong>名前変更</strong>：選択中のシーン名を変更します。</li>
+            <li><strong>複製</strong>：選択中のシーンの音声・キューをコピーして新しいシーンを作ります。</li>
+            <li><strong>削除</strong>：選択中のシーンを削除します。シーンは最低1つ必要です。</li>
+          </ul>
+        </section>
+
+        <section>
+          <h3>3. 音声ファイル</h3>
+          <p>音声はシーンごとに登録されます。JSON保存・キャッシュ保存には読み込んだ音声も含まれるため、次回読み込み直す必要はありません。</p>
+        </section>
+
+        <section>
+          <h3>4. 画像素材と連番素材</h3>
+          <p><strong>画像素材</strong>は通常立ち絵や喋り終わり後に表示する静止画です。<strong>連番素材</strong>は口パクやまばたきのループ再生に使います。</p>
+          <p class="manual-note">重要：ベース素材・口パク素材・まばたき素材は、同じキャンバスサイズで書き出してください。サイズが一致していれば、位置調整なしで重ねて再生できます。</p>
+          <ul>
+            <li>連番素材は複数PNGをまとめて選択します。</li>
+            <li>ファイル名順に読み込まれます。例：mouth_001.png、mouth_002.png、mouth_003.png</li>
+            <li>透過PNG推奨です。</li>
+          </ul>
+        </section>
+
+        <section>
+          <h3>5. キュー設定</h3>
+          <ul>
+            <li><strong>表示画像素材</strong>：開始秒から表示するベース画像です。</li>
+            <li><strong>喋り終わり後の画像素材</strong>：台詞終了秒以降に自動で切り替える静止画です。</li>
+            <li><strong>立ち絵の位置</strong>：プリセットまたはスライダーで調整します。</li>
+            <li><strong>入場</strong>：開始時にフェードインします。</li>
+            <li><strong>退場</strong>：台詞終了時にフェードアウトし、その後は非表示になります。</li>
+            <li><strong>退場なし</strong>：台詞終了後もキャラは表示され続け、喋り終わり後の画像素材に切り替わります。</li>
+          </ul>
+        </section>
+
+        <section>
+          <h3>6. 口パク・まばたき</h3>
+          <p>口パク・まばたきは、それぞれ「なし」「画像素材」「連番素材」から選べます。</p>
+          <ul>
+            <li><strong>口パク</strong>：セリフ中のみ表示・ループします。台詞終了後は止まります。</li>
+            <li><strong>まばたき</strong>：キャラが表示されている間ずっとループします。退場後は止まります。</li>
+            <li>画像素材を選ぶと、セリフ中または表示中に指定画像を重ねます。</li>
+            <li>連番素材を選ぶと、登録したFPSでループ再生します。</li>
+          </ul>
+        </section>
+
+        <section>
+          <h3>7. アニメーション調整</h3>
+          <p>キューごとに「一度だけ小さくジャンプする」「プルプル震える」を設定できます。ジャンプ・震えは、それぞれ大きさと速さをスライダーで調整できます。</p>
+        </section>
+
+        <section>
+          <h3>8. プレビューと書き出し</h3>
+          <ul>
+            <li>プレビュー背景は確認用です。書き出しPNGには入りません。</li>
+            <li>表示倍率は作業画面上の見た目だけに影響します。</li>
+            <li>書き出しPNGは1920×1080の透過PNGです。</li>
+            <li>ZIP書き出しにはJSZipを使用しているため、CDN読み込みが必要です。</li>
+          </ul>
+        </section>
+
+        <section>
+          <h3>9. 保存</h3>
+          <ul>
+            <li><strong>JSON保存</strong>：プロジェクトをファイルとして保存します。</li>
+            <li><strong>JSON読込</strong>：保存済みプロジェクトを読み込みます。</li>
+            <li><strong>キャッシュ保存</strong>：ブラウザ内に一時保存します。</li>
+            <li><strong>キャッシュ復元</strong>：ブラウザ内の保存データを復元します。</li>
+          </ul>
+        </section>
+      </div>
+    </div>
+  </dialog>
+
 
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
   <script src="app.js"></script>
