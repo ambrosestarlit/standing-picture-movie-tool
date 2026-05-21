@@ -57,6 +57,30 @@ button:disabled {
   box-shadow: none;
 }
 
+.language-field {
+  display: inline-grid;
+  grid-template-columns: auto minmax(7.2rem, auto);
+  align-items: center;
+  gap: 0.36rem;
+  border: 1px solid rgba(199, 217, 232, 0.88);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.82);
+  padding: 0.28rem 0.44rem;
+}
+
+.language-field span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.language-field select {
+  min-height: 2rem;
+  padding: 0.28rem 0.48rem;
+  border-radius: 10px;
+}
+
 button.primary {
   border-color: var(--accent-dark);
   background: linear-gradient(180deg, #69b8e9, #3d91cb);
